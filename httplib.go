@@ -318,17 +318,13 @@ func (b *HTTPRequest) Body(data interface{}) *HTTPRequest {
 }
 
 // JSONBody adds request raw body encoding by JSON.
-func (b *HTTPRequest) JSONBody(obj interface{}) (*HTTPRequest, error) {
+func (b *HTTPRequest) JSONBody(obj []uint8) (*HTTPRequest) {
 	if b.req.Body == nil && obj != nil {
-		byts, err := json.Marshal(obj)
-		if err != nil {
-			return b, err
-		}
-		b.req.Body = ioutil.NopCloser(bytes.NewReader(byts))
-		b.req.ContentLength = int64(len(byts))
+		b.req.Body = ioutil.NopCloser(bytes.NewBuffer(obj))
+		b.req.ContentLength = int64(len(obj))
 		b.req.Header.Set("Content-Type", "application/json")
 	}
-	return b, nil
+	return b
 }
 
 func (b *HTTPRequest) buildURL(paramBody string) {

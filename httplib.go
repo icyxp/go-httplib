@@ -116,6 +116,11 @@ func Put(url string) *HTTPRequest {
 	return NewRequest(url, "PUT")
 }
 
+// Put returns *HttpRequest with PATCH method.
+func Patch(url string) *HTTPRequest {
+    return NewRequest(url, "PATCH")
+}
+
 // Delete returns *HttpRequest DELETE method.
 func Delete(url string) *HTTPRequest {
 	return NewRequest(url, "DELETE")

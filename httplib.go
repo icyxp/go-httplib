@@ -1,4 +1,4 @@
-// Copyright 2017 beego Author. All Rights Reserved.
+// Copyright 2017. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,6 +49,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"gopkg.in/yaml.v2"
 )
 
 var defaultSetting = HTTPSettings{
@@ -116,9 +118,9 @@ func Put(url string) *HTTPRequest {
 	return NewRequest(url, "PUT")
 }
 
-// Put returns *HttpRequest with PATCH method.
+// Patch returns *HttpRequest with PATCH method.
 func Patch(url string) *HTTPRequest {
-    return NewRequest(url, "PATCH")
+	return NewRequest(url, "PATCH")
 }
 
 // Delete returns *HttpRequest DELETE method.
@@ -322,8 +324,36 @@ func (b *HTTPRequest) Body(data interface{}) *HTTPRequest {
 	return b
 }
 
+// XMLBody adds request raw body encoding by XML.
+func (b *HTTPRequest) XMLBody(obj interface{}) (*HTTPRequest, error) {
+	if b.req.Body == nil && obj != nil {
+		byts, err := xml.Marshal(obj)
+		if err != nil {
+			return b, err
+		}
+		b.req.Body = ioutil.NopCloser(bytes.NewReader(byts))
+		b.req.ContentLength = int64(len(byts))
+		b.req.Header.Set("Content-Type", "application/xml")
+	}
+	return b, nil
+}
+
+// YAMLBody adds request raw body encoding by YAML.
+func (b *HTTPRequest) YAMLBody(obj interface{}) (*HTTPRequest, error) {
+	if b.req.Body == nil && obj != nil {
+		byts, err := yaml.Marshal(obj)
+		if err != nil {
+			return b, err
+		}
+		b.req.Body = ioutil.NopCloser(bytes.NewReader(byts))
+		b.req.ContentLength = int64(len(byts))
+		b.req.Header.Set("Content-Type", "application/x+yaml")
+	}
+	return b, nil
+}
+
 // JSONBody adds request raw body encoding by JSON.
-func (b *HTTPRequest) JSONBody(obj []uint8) (*HTTPRequest) {
+func (b *HTTPRequest) JSONBody(obj []uint8) *HTTPRequest {
 	if b.req.Body == nil && obj != nil {
 		b.req.Body = ioutil.NopCloser(bytes.NewBuffer(obj))
 		b.req.ContentLength = int64(len(obj))
@@ -417,12 +447,12 @@ func (b *HTTPRequest) DoRequest() (resp *http.Response, err error) {
 	}
 
 	b.buildURL(paramBody)
-	url, err := url.Parse(b.url)
+	urlParsed, err := url.Parse(b.url)
 	if err != nil {
 		return nil, err
 	}
 
-	b.req.URL = url
+	b.req.URL = urlParsed
 
 	trans := b.setting.Transport
 
@@ -432,7 +462,7 @@ func (b *HTTPRequest) DoRequest() (resp *http.Response, err error) {
 			TLSClientConfig:     b.setting.TLSClientConfig,
 			Proxy:               b.setting.Proxy,
 			Dial:                TimeoutDialer(b.setting.ConnectTimeout, b.setting.ReadWriteTimeout),
-			MaxIdleConnsPerHost: -1,
+			MaxIdleConnsPerHost: 100,
 		}
 	} else {
 		// if b.transport is *http.Transport then set the settings.
@@ -565,6 +595,16 @@ func (b *HTTPRequest) ToXML(v interface{}) error {
 		return err
 	}
 	return xml.Unmarshal(data, v)
+}
+
+// ToYAML returns the map that marshals from the body bytes as yaml in response .
+// it calls Response inner.
+func (b *HTTPRequest) ToYAML(v interface{}) error {
+	data, err := b.Bytes()
+	if err != nil {
+		return err
+	}
+	return yaml.Unmarshal(data, v)
 }
 
 // Response executes request client gets response mannually.
